@@ -9,18 +9,17 @@ use Illuminate\Support\Facades\DB;
 
 class EnrollmentController extends Controller
 {
-    // Enroll a student
     public function enroll($studentId, $courseId)
     {
         $student = Student::findOrFail($studentId);
         $course = Course::findOrFail($courseId);
         
+        // Prevent duplicate enrollment
         $student->courses()->syncWithoutDetaching([$course->id]);
         
         return response()->json(['message' => 'Enrolled successfully'], 201);
     }
 
-    // Unenroll a student
     public function unenroll($studentId, $courseId)
     {
         $student = Student::findOrFail($studentId);
@@ -28,46 +27,35 @@ class EnrollmentController extends Controller
         return response()->noContent();
     }
 
-    // Update Grade and Attendance
     public function updatePivot(Request $request, $studentId, $courseId)
     {
         $student = Student::findOrFail($studentId);
         
-        // Use updateExistingPivot to update extra columns on the pivot table
+        // Update grade and attendance
         $student->courses()->updateExistingPivot($courseId, [
-            'grade' => $request->input('grade'),
-            'attendance_record' => $request->input('attendance_record')
+            'grade' => $request->grade,
+            'attendance_record' => $request->attendance_record
         ]);
-
-        return response()->json(['message' => 'Academic record updated']);
+        return response()->json(['message' => 'Record updated']);
     }
 
-    // Get specific enrollment details (grade/attendance)
     public function show($studentId, $courseId)
     {
         $record = DB::table('course_student')
-                    ->where('student_id', $studentId)
-                    ->where('course_id', $courseId)
-                    ->first();
-
-        if (!$record) {
-            return response()->json(['message' => 'Not enrolled'], 404);
-        }
-
+            ->where('student_id', $studentId)
+            ->where('course_id', $courseId)
+            ->first();
+            
+        if (!$record) return response()->json(['error' => 'Not found'], 404);
+        
         return response()->json($record);
     }
 
-    // Get all courses for a student
-    public function getStudentCourses($studentId)
-    {
-        $student = Student::with('courses')->findOrFail($studentId);
-        return response()->json($student->courses);
+    public function getStudentCourses($studentId) {
+        return Student::with('courses')->findOrFail($studentId)->courses;
     }
 
-    // Get all students in a course
-    public function getCourseStudents($courseId)
-    {
-        $course = Course::with('students')->findOrFail($courseId);
-        return response()->json($course->students);
+    public function getCourseStudents($courseId) {
+        return Course::with('students')->findOrFail($courseId)->students;
     }
 }

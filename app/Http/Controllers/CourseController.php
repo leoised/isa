@@ -11,37 +11,29 @@ class CourseController extends Controller
     {
         $query = Course::with('students');
 
-        // Search by title
         if ($request->has('search')) {
             $query->where('title', 'like', "%{$request->search}%");
         }
 
-        // Sorting
         if ($request->has('sort_by')) {
-            $sortOrder = $request->input('sort_order', 'asc');
-            $query->orderBy($request->sort_by, $sortOrder);
+            $query->orderBy($request->sort_by, $request->input('sort_order', 'asc'));
         } else {
             $query->orderBy('id', 'desc');
         }
 
-        return response()->json($query->paginate(10));
+        return response()->json($query->paginate($request->input('per_page', 10)));
     }
 
     public function store(Request $request)
     {
         $data = $request->validate([
             'title' => 'required|string|max:255',
-            'description' => 'nullable|string',
             'credits' => 'nullable|integer|min:1|max:10',
         ]);
-
         return response()->json(Course::create($data), 201);
     }
 
-    public function show($id)
-    {
-        return response()->json(Course::with('students')->findOrFail($id));
-    }
+    public function show($id) { return Course::with('students')->findOrFail($id); }
 
     public function update(Request $request, $id)
     {

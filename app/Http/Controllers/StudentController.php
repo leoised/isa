@@ -11,24 +11,21 @@ class StudentController extends Controller
     {
         $query = Student::with('courses');
 
-        // Search by name or email
         if ($request->has('search')) {
-            $searchTerm = $request->search;
-            $query->where(function($q) use ($searchTerm) {
-                $q->where('name', 'like', "%{$searchTerm}%")
-                  ->orWhere('email', 'like', "%{$searchTerm}%");
+            $val = $request->search;
+            $query->where(function($q) use ($val) {
+                $q->where('name', 'like', "%{$val}%")
+                  ->orWhere('email', 'like', "%{$val}%");
             });
         }
 
-        // Sorting
         if ($request->has('sort_by')) {
-            $sortOrder = $request->input('sort_order', 'asc');
-            $query->orderBy($request->sort_by, $sortOrder);
+            $query->orderBy($request->sort_by, $request->input('sort_order', 'asc'));
         } else {
             $query->orderBy('id', 'desc');
         }
 
-        return response()->json($query->paginate(10));
+        return response()->json($query->paginate($request->input('per_page', 10)));
     }
 
     public function store(Request $request)
@@ -38,14 +35,10 @@ class StudentController extends Controller
             'email' => 'required|email|unique:students,email',
             'age' => 'nullable|integer|min:16|max:100',
         ]);
-
         return response()->json(Student::create($data), 201);
     }
 
-    public function show($id)
-    {
-        return response()->json(Student::with('courses')->findOrFail($id));
-    }
+    public function show($id) { return Student::with('courses')->findOrFail($id); }
 
     public function update(Request $request, $id)
     {

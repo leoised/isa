@@ -5,7 +5,7 @@ use App\Http\Controllers\StudentController;
 use App\Http\Controllers\CourseController;
 use App\Http\Controllers\EnrollmentController;
 
-// Standard Resources (Supports Search, Sorting, Pagination)
+// Standard Resources
 Route::apiResource('students', StudentController::class);
 Route::apiResource('courses', CourseController::class);
 
@@ -15,8 +15,6 @@ Route::controller(EnrollmentController::class)->prefix('enrollments')->group(fun
     Route::delete('/{studentId}/{courseId}', 'unenroll');
     Route::get('/{studentId}/{courseId}', 'show');
     Route::put('/{studentId}/{courseId}', 'updatePivot');
-    
-    // Helper routes
     Route::get('/student/{studentId}', 'getStudentCourses');
     Route::get('/course/{courseId}', 'getCourseStudents');
 });
