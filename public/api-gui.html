@@ -5,7 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Advanced Academic Manager</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <!-- Use standard build to avoid CSP/integrity issues often found with minified versions in some envs -->
+    <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 </head>
 <body class="bg-slate-100 text-slate-800" x-data="app()">
@@ -98,7 +99,7 @@
                 </div>
                 <div class="w-32">
                     <label class="block text-sm font-medium text-gray-700 mb-1">Credits</label>
-                    <input x-model="newCourse.credits" type="number" class="w-full border p-2 rounded">
+                    <input x-model.number="newCourse.credits" type="number" class="w-full border p-2 rounded">
                 </div>
                 <button @click="createCourse" class="bg-emerald-600 text-white px-6 py-2 rounded hover:bg-emerald-700">Create</button>
             </div>
@@ -186,7 +187,7 @@
                 <div class="mb-6">
                     <label class="block text-sm font-medium text-gray-700 mb-2">Grade (0-100)</label>
                     <div class="flex items-center gap-4">
-                        <input x-model="currentRecord.grade" type="number" min="0" max="100" class="w-24 border p-2 rounded text-lg font-bold text-center">
+                        <input x-model.number="currentRecord.grade" type="number" min="0" max="100" class="w-24 border p-2 rounded text-lg font-bold text-center">
                         <div class="h-2 flex-1 bg-gray-200 rounded-full overflow-hidden">
                             <div class="h-full bg-gradient-to-r from-red-500 to-green-500 transition-all duration-500" :style="`width: ${currentRecord.grade}%`"></div>
                         </div>
@@ -227,7 +228,7 @@
             <div class="space-y-3">
                 <input x-model="newStudent.name" type="text" placeholder="Full Name" class="w-full border p-2 rounded">
                 <input x-model="newStudent.email" type="email" placeholder="Email Address" class="w-full border p-2 rounded">
-                <input x-model="newStudent.age" type="number" placeholder="Age" class="w-full border p-2 rounded">
+                <input x-model.number="newStudent.age" type="number" placeholder="Age" class="w-full border p-2 rounded">
             </div>
             <div class="mt-6 flex justify-end gap-3">
                 <button @click="showModal = null" class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded">Cancel</button>
@@ -237,8 +238,8 @@
     </div>
 
     <script>
-        function app() {
-            return {
+        document.addEventListener('alpine:init', () => {
+            Alpine.data('app', () => ({
                 tab: 'students',
                 showModal: null,
                 errorMessage: '',
@@ -265,13 +266,13 @@
                 currentRecord: { grade: 0, attendance_record: '' },
 
                 init() {
+                    console.log("Initializing App...");
                     // Check if running from file system
                     if (window.location.protocol === 'file:') {
                         this.errorMessage = "CRITICAL: You are opening this file directly (file://). Please open via localhost: http://127.0.0.1:8000/api-gui.html";
                         return;
                     }
 
-                    console.log("Initializing App...");
                     this.fetchStudents();
                     this.fetchCourses();
                     this.fetchAllStudents(); // Helper for dropdowns
@@ -292,6 +293,12 @@
                         if (!response.ok) {
                             const data = await response.json().catch(() => ({}));
                             console.error("Fetch Error Data:", data);
+                            
+                            // If it's a validation error (422), make it readable
+                            if (response.status === 422) {
+                                throw new Error(data.message || 'Validation Failed. Please check your inputs.');
+                            }
+                            
                             throw new Error(data.message || `HTTP Error: ${response.status}`);
                         }
                         // Check if content is JSON
@@ -330,6 +337,13 @@
                 },
 
                 async createStudent() {
+                    // Ensure age is an integer
+                    if (this.newStudent.age === '') {
+                        this.errorMessage = "Age is required";
+                        return;
+                    }
+                    this.newStudent.age = parseInt(this.newStudent.age);
+
                     const json = await this.safeFetch(`${this.baseUrl}/students`, {
                         method: 'POST', 
                         headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
@@ -362,6 +376,13 @@
                 },
 
                 async createCourse() {
+                    // Ensure credits is an integer
+                    if (this.newCourse.credits === '') {
+                        this.errorMessage = "Credits are required";
+                        return;
+                    }
+                    this.newCourse.credits = parseInt(this.newCourse.credits);
+
                     const json = await this.safeFetch(`${this.baseUrl}/courses`, {
                         method: 'POST', 
                         headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
@@ -441,8 +462,8 @@
                         this.selectCourseForRecord(course);
                     });
                 }
-            }
-        }
+            }));
+        });
     </script>
 </body>
 </html>
