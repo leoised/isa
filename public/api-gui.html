@@ -3,280 +3,149 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Advanced Academic Manager</title>
+    <title>Academic Manager</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 </head>
-<body class="bg-slate-100 text-slate-800" x-data="app()">
+<body class="bg-gray-100 text-gray-800" x-data="app()">
 
-    <!-- Top Navigation -->
-    <nav class="bg-indigo-700 text-white shadow-lg sticky top-0 z-50">
-        <div class="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">
-            <div class="flex items-center gap-3">
-                <i class="fas fa-university text-2xl"></i>
-                <h1 class="text-xl font-bold tracking-wide">Uni-Manager API</h1>
-            </div>
-            <div class="flex gap-4 text-sm font-medium">
-                <button @click="switchTab('students')" :class="tab === 'students' ? 'bg-indigo-900' : 'hover:bg-indigo-600'" class="px-3 py-2 rounded transition">
-                    <i class="fas fa-user-graduate mr-1"></i> Students
-                </button>
-                <button @click="switchTab('courses')" :class="tab === 'courses' ? 'bg-indigo-900' : 'hover:bg-indigo-600'" class="px-3 py-2 rounded transition">
-                    <i class="fas fa-book mr-1"></i> Courses
-                </button>
-                <button @click="switchTab('enrollment')" :class="tab === 'enrollment' ? 'bg-indigo-900' : 'hover:bg-indigo-600'" class="px-3 py-2 rounded transition">
-                    <i class="fas fa-clipboard-list mr-1"></i> Academic Record
-                </button>
+    <nav class="bg-blue-600 text-white p-4 sticky top-0 z-50 shadow">
+        <div class="max-w-6xl mx-auto flex justify-between items-center">
+            <h1 class="text-xl font-bold">Uni-Manager</h1>
+            <div class="space-x-4">
+                <button @click="tab='students'; fetchStudents()" :class="tab==='students'?'underline':''">Students</button>
+                <button @click="tab='courses'; fetchCourses()" :class="tab==='courses'?'underline':''">Courses</button>
+                <button @click="tab='enrollment'; fetchAllStudents()" :class="tab==='enrollment'?'underline':''">Records</button>
             </div>
         </div>
     </nav>
 
-    <div class="max-w-7xl mx-auto px-4 py-8">
-
-        <!-- Error Notification -->
-        <div x-show="errorMessage" class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert" style="display: none;">
-            <strong class="font-bold">Error!</strong>
-            <span class="block sm:inline" x-text="errorMessage"></span>
-            <span class="absolute top-0 bottom-0 right-0 px-4 py-3" @click="errorMessage = ''">
-                <svg class="fill-current h-6 w-6 text-red-500" role="button" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><title>Close</title><path d="M14.348 14.849a1.2 1.2 0 0 1-1.697 0L10 11.819l-2.651 3.029a1.2 1.2 0 1 1-1.697-1.697l2.758-3.15-2.759-3.152a1.2 1.2 0 1 1 1.697-1.697L10 8.183l2.651-3.031a1.2 1.2 0 1 1 1.697 1.697l-2.758 3.152 2.758 3.15a1.2 1.2 0 0 1 0 1.698z"/></svg>
-            </span>
+    <div class="max-w-6xl mx-auto p-6">
+        <!-- Error Box -->
+        <div x-show="errorMsg" class="bg-red-100 text-red-700 p-3 rounded mb-4 border border-red-300 flex justify-between">
+            <span x-text="errorMsg"></span>
+            <button @click="errorMsg=''" class="font-bold">&times;</button>
         </div>
 
         <!-- STUDENTS TAB -->
-        <div x-show="tab === 'students'" class="space-y-6">
-            <div class="flex flex-col md:flex-row justify-between items-center bg-white p-4 rounded-lg shadow gap-4">
-                <div class="relative w-full md:w-96">
-                    <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
-                    <input x-model.debounce.500ms="searchQuery" @input="fetchStudents(1)" type="text" placeholder="Search students..." class="w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:border-indigo-500">
-                </div>
-                
-                <div class="flex gap-2 items-center w-full md:w-auto justify-end">
-                    <label class="text-sm text-gray-600 mr-1">Sort:</label>
-                    <select x-model="studentSort.by" @change="fetchStudents(1)" class="border p-2 rounded text-sm">
-                        <option value="id">ID</option>
-                        <option value="name">Name</option>
-                        <option value="email">Email</option>
-                        <option value="age">Age</option>
-                        <option value="created_at">Newest</option>
-                    </select>
-                    <button @click="toggleStudentSortOrder" class="px-3 py-2 bg-gray-100 rounded hover:bg-gray-200" :title="studentSort.order === 'asc' ? 'Ascending' : 'Descending'">
-                        <i class="fas" :class="studentSort.order === 'asc' ? 'fa-sort-amount-down-alt' : 'fa-sort-amount-up'"></i>
-                    </button>
-                </div>
-
-                <div class="flex gap-2 w-full md:w-auto justify-end">
-                    <!-- Pagination Controls -->
-                    <button @click="fetchStudents(pagination.current_page - 1)" :disabled="!pagination.current_page || pagination.current_page <= 1" class="px-3 py-1 bg-gray-200 rounded disabled:opacity-50"><</button>
-                    <span class="px-2 py-1 text-sm text-gray-600 whitespace-nowrap flex items-center" x-text="pagination.current_page ? `Page ${pagination.current_page}` : 'Loading...'"></span>
-                    <button @click="fetchStudents(pagination.current_page + 1)" :disabled="!pagination.current_page || pagination.current_page >= pagination.last_page" class="px-3 py-1 bg-gray-200 rounded disabled:opacity-50">></button>
-                </div>
+        <div x-show="tab==='students'">
+            <div class="bg-white p-4 rounded shadow mb-6 flex gap-4">
+                <input x-model.debounce="searchQuery" @input="fetchStudents(1)" type="text" placeholder="Search..." class="border p-2 rounded w-full">
+                <select x-model="studentSort.by" @change="fetchStudents(1)" class="border p-2 rounded">
+                    <option value="id">ID</option>
+                    <option value="name">Name</option>
+                    <option value="age">Age</option>
+                </select>
+                <button @click="showModal='student'" class="bg-blue-600 text-white px-4 py-2 rounded">Add New</button>
             </div>
 
-            <!-- Student List -->
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <!-- Add New Student Card -->
-                <div class="bg-indigo-50 border-2 border-dashed border-indigo-200 rounded-lg p-6 flex flex-col justify-center items-center text-indigo-400 hover:border-indigo-400 hover:text-indigo-600 transition cursor-pointer group" @click="showModal = 'student'">
-                    <i class="fas fa-plus-circle text-4xl mb-2 group-hover:scale-110 transition"></i>
-                    <span class="font-semibold">Register Student</span>
-                </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <template x-for="s in students" :key="s.id">
+                    <div class="bg-white p-4 rounded shadow relative">
+                        <button @click="deleteStudent(s.id)" class="absolute top-2 right-2 text-red-400 hover:text-red-600">&times;</button>
+                        <h3 class="font-bold text-lg" x-text="s.name"></h3>
+                        <p class="text-sm text-gray-500" x-text="s.email"></p>
+                        <p class="text-xs mt-2 font-bold text-gray-400">COURSES:</p>
+                        <div class="flex flex-wrap gap-1 mt-1">
+                            <template x-for="c in s.courses" :key="c.id">
+                                <span class="text-xs bg-blue-100 text-blue-800 px-1 rounded cursor-pointer" @click="goToRecord(s.id, c.id)" x-text="c.title"></span>
+                            </template>
+                            <span x-show="!s.courses.length" class="text-xs text-gray-300">None</span>
+                        </div>
+                    </div>
+                </template>
+            </div>
+            
+            <!-- Pagination -->
+            <div class="mt-4 flex justify-center gap-2">
+                <button @click="fetchStudents(pagination.current_page - 1)" :disabled="pagination.current_page <= 1" class="px-3 py-1 bg-gray-200 rounded disabled:opacity-50">Prev</button>
+                <button @click="fetchStudents(pagination.current_page + 1)" :disabled="pagination.current_page >= pagination.last_page" class="px-3 py-1 bg-gray-200 rounded disabled:opacity-50">Next</button>
+            </div>
+        </div>
 
-                <template x-for="student in students" :key="student.id">
-                    <div class="bg-white rounded-lg shadow hover:shadow-md transition p-6 relative">
-                        <button @click="deleteStudent(student.id)" class="absolute top-4 right-4 text-gray-300 hover:text-red-500 transition"><i class="fas fa-trash"></i></button>
-                        <div class="flex items-center gap-4 mb-4">
-                            <div class="w-12 h-12 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600 font-bold text-xl" x-text="student.name ? student.name.charAt(0) : '?'"></div>
-                            <div>
-                                <h3 class="font-bold text-lg text-slate-800" x-text="student.name"></h3>
-                                <p class="text-sm text-slate-500" x-text="student.email"></p>
-                                <p class="text-xs text-slate-400 mt-1" x-text="`Age: ${student.age || 'N/A'}`"></p>
-                            </div>
+        <!-- COURSES TAB -->
+        <div x-show="tab==='courses'">
+            <div class="bg-white p-4 rounded shadow mb-6 flex gap-2">
+                <input x-model="newCourse.title" placeholder="Course Title" class="border p-2 rounded flex-1">
+                <input x-model.number="newCourse.credits" type="number" placeholder="Credits" class="border p-2 rounded w-24">
+                <button @click="createCourse" class="bg-green-600 text-white px-4 rounded">Create</button>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <template x-for="c in courses" :key="c.id">
+                    <div class="bg-white p-4 rounded shadow flex justify-between items-center">
+                        <div>
+                            <h3 class="font-bold" x-text="c.title"></h3>
+                            <span class="text-xs bg-gray-200 px-2 rounded" x-text="c.credits + ' Cr'"></span>
                         </div>
-                        <div class="border-t pt-4">
-                            <p class="text-xs font-semibold text-gray-400 uppercase mb-2">Enrolled Courses</p>
-                            <div class="flex flex-wrap gap-2">
-                                <template x-for="course in student.courses" :key="course.id">
-                                    <span @click="selectForGrading(student, course)" class="text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded border border-blue-100 cursor-pointer hover:bg-blue-100" x-text="course.title"></span>
-                                </template>
-                                <span x-show="!student.courses || student.courses.length === 0" class="text-xs text-gray-400 italic">No courses</span>
-                            </div>
-                        </div>
+                        <button @click="deleteCourse(c.id)" class="text-red-500 hover:text-red-700">Delete</button>
                     </div>
                 </template>
             </div>
         </div>
 
-        <!-- COURSES TAB -->
-        <div x-show="tab === 'courses'" class="space-y-6" style="display: none;">
-            
-            <!-- Course Controls -->
-            <div class="flex flex-col md:flex-row justify-between items-center bg-white p-4 rounded-lg shadow gap-4">
-                 <div class="relative w-full md:w-96">
-                    <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
-                    <input x-model.debounce.500ms="courseSearchQuery" @input="fetchCourses(1)" type="text" placeholder="Search courses..." class="w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:border-indigo-500">
-                </div>
+        <!-- RECORDS TAB -->
+        <div x-show="tab==='enrollment'" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="bg-white p-6 rounded shadow">
+                <h3 class="font-bold border-b mb-4 pb-2">1. Select Student & Course</h3>
+                <label class="block text-sm mb-1">Student</label>
+                <select x-model="selectedStudentId" @change="loadStudentEnrollments" class="w-full border p-2 rounded mb-4">
+                    <option value="">Choose...</option>
+                    <template x-for="s in allStudents" :key="s.id"><option :value="s.id" x-text="s.name"></option></template>
+                </select>
 
-                <div class="flex gap-2 items-center w-full md:w-auto justify-end">
-                    <label class="text-sm text-gray-600 mr-1">Sort:</label>
-                    <select x-model="courseSort.by" @change="fetchCourses(1)" class="border p-2 rounded text-sm">
-                        <option value="id">ID</option>
-                        <option value="title">Title</option>
-                        <option value="credits">Credits</option>
-                        <option value="created_at">Newest</option>
-                    </select>
-                    <button @click="toggleCourseSortOrder" class="px-3 py-2 bg-gray-100 rounded hover:bg-gray-200" :title="courseSort.order === 'asc' ? 'Ascending' : 'Descending'">
-                        <i class="fas" :class="courseSort.order === 'asc' ? 'fa-sort-amount-down-alt' : 'fa-sort-amount-up'"></i>
-                    </button>
-                </div>
-            </div>
-
-            <!-- Create Course Form -->
-            <div class="bg-white p-6 rounded-lg shadow flex gap-4 items-end">
-                <div class="flex-1">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">New Course Title</label>
-                    <input x-model="newCourse.title" type="text" class="w-full border p-2 rounded">
-                </div>
-                <div class="w-32">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Credits</label>
-                    <input x-model.number="newCourse.credits" type="number" class="w-full border p-2 rounded">
-                </div>
-                <button @click="createCourse" class="bg-emerald-600 text-white px-6 py-2 rounded hover:bg-emerald-700">Create</button>
-            </div>
-
-            <div class="overflow-x-auto bg-white rounded-lg shadow">
-                <table class="min-w-full">
-                    <thead class="bg-gray-50">
-                        <tr>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Title</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Credits</th>
-                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-200">
-                        <template x-for="course in courses" :key="course.id">
-                            <tr>
-                                <td class="px-6 py-4 whitespace-nowrap text-gray-500" x-text="course.id"></td>
-                                <td class="px-6 py-4 whitespace-nowrap font-medium text-gray-900" x-text="course.title"></td>
-                                <td class="px-6 py-4 whitespace-nowrap text-gray-500" x-text="course.credits"></td>
-                                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                    <button @click="deleteCourse(course.id)" class="text-red-600 hover:text-red-900">Delete</button>
-                                </td>
-                            </tr>
+                <div x-show="selectedStudentId">
+                    <label class="block text-sm mb-1">Manage Course</label>
+                    <div class="space-y-2 mb-4">
+                        <template x-for="c in availableCourses" :key="c.id">
+                            <div @click="selectCourseForRecord(c.id)" :class="selectedCourseId==c.id ? 'bg-blue-50 border-blue-500' : 'bg-gray-50'" class="border p-2 rounded cursor-pointer hover:bg-gray-100">
+                                <span x-text="c.title"></span>
+                            </div>
                         </template>
-                    </tbody>
-                </table>
-            </div>
-             <!-- Course Pagination (Optional if list gets long) -->
-             <div class="flex justify-center mt-4 gap-2" x-show="coursePagination.last_page > 1">
-                <button @click="fetchCourses(coursePagination.current_page - 1)" :disabled="coursePagination.current_page <= 1" class="px-3 py-1 bg-gray-200 rounded disabled:opacity-50"><</button>
-                <span class="px-2 py-1 text-sm text-gray-600" x-text="`Page ${coursePagination.current_page}`"></span>
-                <button @click="fetchCourses(coursePagination.current_page + 1)" :disabled="coursePagination.current_page >= coursePagination.last_page" class="px-3 py-1 bg-gray-200 rounded disabled:opacity-50">></button>
-            </div>
-        </div>
-
-        <!-- ACADEMIC RECORD TAB -->
-        <div x-show="tab === 'enrollment'" class="grid grid-cols-1 lg:grid-cols-2 gap-8" style="display: none;">
-            <!-- Left: Selection -->
-            <div class="bg-white p-6 rounded-lg shadow h-fit">
-                <h3 class="text-lg font-bold mb-4 border-b pb-2">1. Select Enrollment</h3>
-                <div class="space-y-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700">Student</label>
-                        <select x-model="selectedStudentId" @change="loadStudentEnrollments" class="w-full border p-2 rounded mt-1">
-                            <option value="">Select Student...</option>
-                            <template x-for="s in allStudents" :key="s.id">
-                                <option :value="s.id" x-text="s.name"></option>
-                            </template>
-                        </select>
                     </div>
                     
-                    <div x-show="selectedStudentId">
-                        <label class="block text-sm font-medium text-gray-700">Course to Manage</label>
-                        <div class="mt-2 space-y-2">
-                            <template x-for="c in availableCourses" :key="c.id">
-                                <div @click="selectCourseForRecord(c)" 
-                                     :class="selectedCourseId === c.id ? 'bg-indigo-50 border-indigo-500' : 'bg-gray-50 border-gray-200 hover:border-indigo-300'"
-                                     class="p-3 rounded border cursor-pointer flex justify-between items-center transition">
-                                    <span x-text="c.title"></span>
-                                    <i x-show="selectedCourseId === c.id" class="fas fa-check text-indigo-600"></i>
-                                </div>
-                            </template>
-                            <div x-show="availableCourses.length === 0" class="text-sm text-gray-500 italic">
-                                This student is not enrolled in any courses.
-                            </div>
-                        </div>
-                        
-                        <!-- New Enrollment Dropdown -->
-                        <div class="mt-6 pt-4 border-t">
-                            <label class="text-xs text-gray-500 uppercase">Enroll in new course</label>
-                            <div class="flex gap-2 mt-1">
-                                <select x-model="courseToEnrollId" class="flex-1 border p-2 rounded text-sm">
-                                    <option value="">Select course...</option>
-                                    <template x-for="c in courses" :key="c.id">
-                                        <option :value="c.id" x-text="c.title"></option>
-                                    </template>
-                                </select>
-                                <button @click="enroll" :disabled="!courseToEnrollId" class="bg-indigo-600 text-white px-3 rounded text-sm disabled:opacity-50">Add</button>
-                            </div>
+                    <div class="border-t pt-2">
+                        <label class="text-xs text-gray-500">Enroll in new:</label>
+                        <div class="flex gap-2">
+                            <select x-model="courseToEnrollId" class="border p-1 rounded w-full text-sm">
+                                <option value="">Select...</option>
+                                <template x-for="c in courses" :key="c.id"><option :value="c.id" x-text="c.title"></option></template>
+                            </select>
+                            <button @click="enroll" class="bg-blue-600 text-white px-3 rounded text-sm">Add</button>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Right: Grading & Attendance -->
-            <div x-show="selectedCourseId" class="bg-white p-6 rounded-lg shadow" style="display: none;">
-                <h3 class="text-lg font-bold mb-4 border-b pb-2">2. Manage Record</h3>
+            <div x-show="selectedCourseId" class="bg-white p-6 rounded shadow">
+                <h3 class="font-bold border-b mb-4 pb-2">2. Grading & Attendance</h3>
                 
-                <!-- Grade -->
-                <div class="mb-6">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Grade (0-100)</label>
-                    <div class="flex items-center gap-4">
-                        <input x-model.number="currentRecord.grade" type="number" min="0" max="100" class="w-24 border p-2 rounded text-lg font-bold text-center">
-                        <div class="h-2 flex-1 bg-gray-200 rounded-full overflow-hidden">
-                            <div class="h-full bg-gradient-to-r from-red-500 to-green-500 transition-all duration-500" :style="`width: ${currentRecord.grade}%`"></div>
-                        </div>
-                    </div>
-                </div>
+                <label class="block text-sm mb-1">Grade (0-100)</label>
+                <input x-model.number="currentRecord.grade" type="number" class="border p-2 rounded w-full mb-4">
 
-                <!-- Attendance -->
-                <div class="mb-6">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Attendance Record</label>
-                    <div class="flex gap-2 mb-2">
-                        <button @click="markAttendance('A')" class="flex-1 bg-green-100 text-green-700 py-2 rounded hover:bg-green-200 font-semibold">
-                            <i class="fas fa-check"></i> Present (A)
-                        </button>
-                        <button @click="markAttendance('X')" class="flex-1 bg-red-100 text-red-700 py-2 rounded hover:bg-red-200 font-semibold">
-                            <i class="fas fa-times"></i> Absent (X)
-                        </button>
-                    </div>
-                    <div class="bg-gray-900 text-white p-4 rounded font-mono tracking-widest text-center text-xl overflow-x-auto">
-                        <span x-text="currentRecord.attendance_record || 'No records'"></span>
-                    </div>
-                    <div class="text-right mt-1">
-                        <button @click="currentRecord.attendance_record = ''" class="text-xs text-red-400 hover:text-red-600 underline">Clear Record</button>
-                    </div>
+                <label class="block text-sm mb-1">Attendance</label>
+                <div class="flex gap-2 mb-2">
+                    <button @click="currentRecord.attendance_record += 'A'" class="flex-1 bg-green-100 text-green-800 py-1 rounded">+ Present (A)</button>
+                    <button @click="currentRecord.attendance_record += 'X'" class="flex-1 bg-red-100 text-red-800 py-1 rounded">+ Absent (X)</button>
                 </div>
+                <div class="bg-gray-800 text-white p-2 rounded font-mono text-center mb-1" x-text="currentRecord.attendance_record || '-'"></div>
+                <button @click="currentRecord.attendance_record=''" class="text-xs text-red-500 underline block mb-4 text-right">Clear</button>
 
-                <button @click="saveRecord" class="w-full bg-indigo-600 text-white py-3 rounded-lg font-bold hover:bg-indigo-700 transition shadow-md">
-                    Save Changes
-                </button>
+                <button @click="saveRecord" class="w-full bg-blue-600 text-white py-2 rounded font-bold hover:bg-blue-700">Save Changes</button>
             </div>
         </div>
-
     </div>
 
-    <!-- Modals (Simple implementation) -->
-    <div x-show="showModal === 'student'" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4" style="display: none;">
-        <div class="bg-white rounded-lg p-6 w-full max-w-md shadow-xl">
-            <h2 class="text-xl font-bold mb-4">Register New Student</h2>
-            <div class="space-y-3">
-                <input x-model="newStudent.name" type="text" placeholder="Full Name" class="w-full border p-2 rounded">
-                <input x-model="newStudent.email" type="email" placeholder="Email Address" class="w-full border p-2 rounded">
-                <input x-model.number="newStudent.age" type="number" placeholder="Age" class="w-full border p-2 rounded">
-            </div>
-            <div class="mt-6 flex justify-end gap-3">
-                <button @click="showModal = null" class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded">Cancel</button>
-                <button @click="createStudent" class="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700">Save</button>
+    <!-- ADD STUDENT MODAL -->
+    <div x-show="showModal==='student'" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+        <div class="bg-white p-6 rounded shadow w-96">
+            <h3 class="font-bold text-xl mb-4">Add Student</h3>
+            <input x-model="newStudent.name" placeholder="Name" class="w-full border p-2 rounded mb-2">
+            <input x-model="newStudent.email" placeholder="Email" class="w-full border p-2 rounded mb-2">
+            <input x-model.number="newStudent.age" type="number" placeholder="Age" class="w-full border p-2 rounded mb-4">
+            <div class="flex justify-end gap-2">
+                <button @click="showModal=null" class="text-gray-500">Cancel</button>
+                <button @click="createStudent" class="bg-blue-600 text-white px-4 py-2 rounded">Save</button>
             </div>
         </div>
     </div>
@@ -286,247 +155,106 @@
             Alpine.data('app', () => ({
                 tab: 'students',
                 showModal: null,
-                errorMessage: '',
+                errorMsg: '',
                 baseUrl: 'http://127.0.0.1:8000/api',
                 
-                // Data
                 students: [],
-                allStudents: [], // For dropdown
                 courses: [],
+                allStudents: [],
                 availableCourses: [],
-                
-                // Pagination & Filtering
                 pagination: {},
-                coursePagination: {},
-                searchQuery: '',
-                courseSearchQuery: '',
                 
+                searchQuery: '',
                 studentSort: { by: 'id', order: 'desc' },
-                courseSort: { by: 'id', order: 'desc' },
-
-                // Forms
+                
                 newStudent: { name: '', email: '', age: '' },
                 newCourse: { title: '', credits: '' },
                 
-                // Record Management
                 selectedStudentId: '',
                 selectedCourseId: '',
                 courseToEnrollId: '',
                 currentRecord: { grade: 0, attendance_record: '' },
 
                 init() {
-                    console.log("Initializing App...");
-                    // Check if running from file system
-                    if (window.location.protocol === 'file:') {
-                        this.errorMessage = "CRITICAL: You are opening this file directly (file://). Please open via localhost: http://127.0.0.1:8000/api-gui.html";
-                        return;
-                    }
-
                     this.fetchStudents();
                     this.fetchCourses();
-                    this.fetchAllStudents(); // Helper for dropdowns
+                    this.fetchAllStudents();
                 },
 
-                switchTab(t) {
-                    this.tab = t;
-                    if(t === 'enrollment') this.fetchAllStudents();
-                },
-
-                // Helper to handle Fetch Errors
-                async safeFetch(url, options = {}) {
-                    console.log(`Fetching: ${url}`, options);
+                async req(url, method = 'GET', body = null) {
                     try {
-                        const response = await fetch(url, options);
-                        console.log(`Response Status: ${response.status}`);
-                        
-                        if (!response.ok) {
-                            const data = await response.json().catch(() => ({}));
-                            console.error("Fetch Error Data:", data);
-                            
-                            // If it's a validation error (422), make it readable
-                            if (response.status === 422) {
-                                throw new Error(data.message || 'Validation Failed. Please check your inputs.');
-                            }
-                            
-                            throw new Error(data.message || `HTTP Error: ${response.status}`);
+                        const opts = { method, headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' } };
+                        if (body) opts.body = JSON.stringify(body);
+                        const res = await fetch(url, opts);
+                        if (!res.ok) {
+                            const err = await res.json().catch(()=>({}));
+                            throw new Error(err.message || 'Request failed');
                         }
-                        // Check if content is JSON
-                        const contentType = response.headers.get("content-type");
-                        if (contentType && contentType.indexOf("application/json") !== -1) {
-                            return await response.json();
-                        } else {
-                            // If no content returned (e.g. 204 No Content)
-                            return null;
-                        }
-                    } catch (error) {
-                        console.error("API Error caught:", error);
-                        this.errorMessage = error.message;
-                        // Return null to signal failure
+                        return res.status === 204 ? true : await res.json();
+                    } catch (e) {
+                        this.errorMsg = e.message;
+                        console.error(e);
                         return null;
                     }
                 },
 
-                toggleStudentSortOrder() {
-                    this.studentSort.order = this.studentSort.order === 'asc' ? 'desc' : 'asc';
-                    this.fetchStudents(1);
-                },
-
-                toggleCourseSortOrder() {
-                    this.courseSort.order = this.courseSort.order === 'asc' ? 'desc' : 'asc';
-                    this.fetchCourses(1);
-                },
-
-                // API: Students
                 async fetchStudents(page = 1) {
-                    let url = `${this.baseUrl}/students?page=${page}&sort_by=${this.studentSort.by}&sort_order=${this.studentSort.order}`;
-                    if(this.searchQuery) url += `&search=${this.searchQuery}`;
-                    
-                    const json = await this.safeFetch(url);
-                    if (json) {
-                        this.students = json.data;
-                        this.pagination = json; // Save pagination meta
-                    }
+                    const data = await this.req(`${this.baseUrl}/students?page=${page}&search=${this.searchQuery}&sort_by=${this.studentSort.by}`);
+                    if (data) { this.students = data.data; this.pagination = data; }
                 },
-
+                async fetchCourses() {
+                    const data = await this.req(`${this.baseUrl}/courses`);
+                    if (data) this.courses = data.data;
+                },
                 async fetchAllStudents() {
-                    const json = await this.safeFetch(`${this.baseUrl}/students?page=1`); 
-                    if (json) {
-                        this.allStudents = json.data;
-                    }
+                    const data = await this.req(`${this.baseUrl}/students?per_page=100`);
+                    if (data) this.allStudents = data.data;
                 },
 
                 async createStudent() {
-                    // Ensure age is an integer
-                    if (this.newStudent.age === '') {
-                        this.errorMessage = "Age is required";
-                        return;
-                    }
-                    this.newStudent.age = parseInt(this.newStudent.age);
-
-                    const json = await this.safeFetch(`${this.baseUrl}/students`, {
-                        method: 'POST', 
-                        headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
-                        body: JSON.stringify(this.newStudent)
-                    });
-
-                    if(json) {
-                        this.showModal = null;
-                        this.newStudent = { name: '', email: '', age: '' };
-                        this.fetchStudents();
-                        this.errorMessage = '';
+                    if (await this.req(`${this.baseUrl}/students`, 'POST', this.newStudent)) {
+                        this.showModal = null; this.newStudent = {name:'',email:'',age:''}; this.fetchStudents();
                     }
                 },
-
                 async deleteStudent(id) {
-                    if(!confirm('Are you sure?')) return;
-                    await this.safeFetch(`${this.baseUrl}/students/${id}`, { 
-                        method: 'DELETE',
-                        headers: {'Accept': 'application/json'}
-                    });
-                    this.fetchStudents(this.pagination.current_page);
+                    if(confirm('Delete?')) { await this.req(`${this.baseUrl}/students/${id}`, 'DELETE'); this.fetchStudents(); }
                 },
-
-                // API: Courses
-                async fetchCourses(page = 1) {
-                    let url = `${this.baseUrl}/courses?page=${page}&sort_by=${this.courseSort.by}&sort_order=${this.courseSort.order}`;
-                    if(this.courseSearchQuery) url += `&search=${this.courseSearchQuery}`;
-
-                    const json = await this.safeFetch(url);
-                    if (json) {
-                        this.courses = json.data;
-                        this.coursePagination = json;
-                    }
-                },
-
                 async createCourse() {
-                    // Ensure credits is an integer
-                    if (this.newCourse.credits === '') {
-                        this.errorMessage = "Credits are required";
-                        return;
-                    }
-                    this.newCourse.credits = parseInt(this.newCourse.credits);
-
-                    const json = await this.safeFetch(`${this.baseUrl}/courses`, {
-                        method: 'POST', 
-                        headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
-                        body: JSON.stringify(this.newCourse)
-                    });
-                    if (json) {
-                        this.newCourse = { title: '', credits: '' };
-                        this.fetchCourses();
-                        this.errorMessage = '';
+                    if (await this.req(`${this.baseUrl}/courses`, 'POST', this.newCourse)) {
+                        this.newCourse = {title:'', credits:''}; this.fetchCourses();
                     }
                 },
-
                 async deleteCourse(id) {
-                    if(!confirm('Delete course?')) return;
-                    await this.safeFetch(`${this.baseUrl}/courses/${id}`, { 
-                        method: 'DELETE',
-                        headers: {'Accept': 'application/json'}
-                    });
-                    this.fetchCourses();
+                    if(confirm('Delete?')) { await this.req(`${this.baseUrl}/courses/${id}`, 'DELETE'); this.fetchCourses(); }
                 },
 
-                // API: Enrollment Logic
                 async loadStudentEnrollments() {
                     if(!this.selectedStudentId) return;
-                    const json = await this.safeFetch(`${this.baseUrl}/enrollments/student/${this.selectedStudentId}`);
-                    if (json) {
-                        this.availableCourses = json;
-                        this.selectedCourseId = ''; // Reset selection
-                    }
+                    this.availableCourses = await this.req(`${this.baseUrl}/enrollments/student/${this.selectedStudentId}`);
+                    this.selectedCourseId = null;
                 },
-
                 async enroll() {
-                    if(!this.selectedStudentId || !this.courseToEnrollId) return;
-                    const json = await this.safeFetch(`${this.baseUrl}/enrollments/${this.selectedStudentId}/${this.courseToEnrollId}`, {
-                        method: 'POST', 
-                        headers: {'Accept': 'application/json'}
-                    });
-                    if(json) {
+                    if (await this.req(`${this.baseUrl}/enrollments/${this.selectedStudentId}/${this.courseToEnrollId}`, 'POST')) {
                         this.loadStudentEnrollments();
-                        this.courseToEnrollId = '';
-                        this.errorMessage = '';
                     }
                 },
-
-                async selectCourseForRecord(course) {
-                    this.selectedCourseId = course.id;
-                    const data = await this.safeFetch(`${this.baseUrl}/enrollments/${this.selectedStudentId}/${course.id}`);
-                    if (data) {
-                        this.currentRecord = {
-                            grade: data.grade || 0,
-                            attendance_record: data.attendance_record || ''
-                        };
-                    }
+                async selectCourseForRecord(cid) {
+                    this.selectedCourseId = cid;
+                    const data = await this.req(`${this.baseUrl}/enrollments/${this.selectedStudentId}/${cid}`);
+                    if (data) this.currentRecord = { grade: data.grade||0, attendance_record: data.attendance_record||'' };
                 },
-
-                markAttendance(type) {
-                    this.currentRecord.attendance_record += type;
-                },
-
                 async saveRecord() {
-                    const json = await this.safeFetch(`${this.baseUrl}/enrollments/${this.selectedStudentId}/${this.selectedCourseId}`, {
-                        method: 'PUT',
-                        headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
-                        body: JSON.stringify(this.currentRecord)
-                    });
-                    
-                    if(json) {
+                    if (await this.req(`${this.baseUrl}/enrollments/${this.selectedStudentId}/${this.selectedCourseId}`, 'PUT', this.currentRecord)) {
                         alert('Saved!');
-                        this.errorMessage = '';
                     }
                 },
-                
-                selectForGrading(student, course) {
+                goToRecord(sid, cid) {
                     this.tab = 'enrollment';
-                    this.selectedStudentId = student.id;
-                    this.loadStudentEnrollments().then(() => {
-                        this.selectCourseForRecord(course);
-                    });
+                    this.selectedStudentId = sid;
+                    this.loadStudentEnrollments().then(() => this.selectCourseForRecord(cid));
                 }
-            }));
-        });
+            }))
+        })
     </script>
 </body>
 </html>
