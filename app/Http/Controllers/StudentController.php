@@ -7,14 +7,11 @@ use Illuminate\Http\Request;
 
 class StudentController extends Controller
 {
-    /**
-     * Display a listing of the resource with Search and Pagination.
-     */
     public function index(Request $request)
     {
         $query = Student::with('courses');
 
-        // Feature: Search
+        // Search
         if ($request->has('search')) {
             $searchTerm = $request->search;
             $query->where(function($q) use ($searchTerm) {
@@ -23,13 +20,23 @@ class StudentController extends Controller
             });
         }
 
-        // Feature: Pagination (returns 10 per page)
+        // Sorting
+        if ($request->has('sort_by')) {
+            $sortBy = $request->sort_by;
+            $sortOrder = $request->input('sort_order', 'asc'); // Default to ascending
+            
+            // Allow sorting by specific columns only
+            if (in_array($sortBy, ['id', 'name', 'email', 'age', 'created_at'])) {
+                $query->orderBy($sortBy, $sortOrder);
+            }
+        } else {
+            // Default sort
+            $query->orderBy('id', 'desc');
+        }
+
         return response()->json($query->paginate(10));
     }
 
-    /**
-     * Store a newly created student.
-     */
     public function store(Request $request)
     {
         $data = $request->validate([
@@ -42,17 +49,11 @@ class StudentController extends Controller
         return response()->json($student, 201);
     }
 
-    /**
-     * Display the specified student.
-     */
     public function show($id)
     {
         return response()->json(Student::with('courses')->findOrFail($id));
     }
 
-    /**
-     * Update the specified student.
-     */
     public function update(Request $request, $id)
     {
         $student = Student::findOrFail($id);
@@ -67,9 +68,6 @@ class StudentController extends Controller
         return response()->json($student);
     }
 
-    /**
-     * Remove the specified student.
-     */
     public function destroy($id)
     {
         Student::findOrFail($id)->delete();

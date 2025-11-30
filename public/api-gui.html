@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Advanced Academic Manager</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Use standard build to avoid CSP/integrity issues often found with minified versions in some envs -->
     <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 </head>
@@ -45,15 +44,30 @@
 
         <!-- STUDENTS TAB -->
         <div x-show="tab === 'students'" class="space-y-6">
-            <div class="flex justify-between items-center bg-white p-4 rounded-lg shadow">
-                <div class="relative w-96">
+            <div class="flex flex-col md:flex-row justify-between items-center bg-white p-4 rounded-lg shadow gap-4">
+                <div class="relative w-full md:w-96">
                     <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
                     <input x-model.debounce.500ms="searchQuery" @input="fetchStudents(1)" type="text" placeholder="Search students..." class="w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:border-indigo-500">
                 </div>
-                <div class="flex gap-2">
+                
+                <div class="flex gap-2 items-center w-full md:w-auto justify-end">
+                    <label class="text-sm text-gray-600 mr-1">Sort:</label>
+                    <select x-model="studentSort.by" @change="fetchStudents(1)" class="border p-2 rounded text-sm">
+                        <option value="id">ID</option>
+                        <option value="name">Name</option>
+                        <option value="email">Email</option>
+                        <option value="age">Age</option>
+                        <option value="created_at">Newest</option>
+                    </select>
+                    <button @click="toggleStudentSortOrder" class="px-3 py-2 bg-gray-100 rounded hover:bg-gray-200" :title="studentSort.order === 'asc' ? 'Ascending' : 'Descending'">
+                        <i class="fas" :class="studentSort.order === 'asc' ? 'fa-sort-amount-down-alt' : 'fa-sort-amount-up'"></i>
+                    </button>
+                </div>
+
+                <div class="flex gap-2 w-full md:w-auto justify-end">
                     <!-- Pagination Controls -->
                     <button @click="fetchStudents(pagination.current_page - 1)" :disabled="!pagination.current_page || pagination.current_page <= 1" class="px-3 py-1 bg-gray-200 rounded disabled:opacity-50"><</button>
-                    <span class="px-2 py-1 text-sm text-gray-600" x-text="pagination.current_page ? `Page ${pagination.current_page}` : 'Loading...'"></span>
+                    <span class="px-2 py-1 text-sm text-gray-600 whitespace-nowrap flex items-center" x-text="pagination.current_page ? `Page ${pagination.current_page}` : 'Loading...'"></span>
                     <button @click="fetchStudents(pagination.current_page + 1)" :disabled="!pagination.current_page || pagination.current_page >= pagination.last_page" class="px-3 py-1 bg-gray-200 rounded disabled:opacity-50">></button>
                 </div>
             </div>
@@ -74,6 +88,7 @@
                             <div>
                                 <h3 class="font-bold text-lg text-slate-800" x-text="student.name"></h3>
                                 <p class="text-sm text-slate-500" x-text="student.email"></p>
+                                <p class="text-xs text-slate-400 mt-1" x-text="`Age: ${student.age || 'N/A'}`"></p>
                             </div>
                         </div>
                         <div class="border-t pt-4">
@@ -92,9 +107,32 @@
 
         <!-- COURSES TAB -->
         <div x-show="tab === 'courses'" class="space-y-6" style="display: none;">
+            
+            <!-- Course Controls -->
+            <div class="flex flex-col md:flex-row justify-between items-center bg-white p-4 rounded-lg shadow gap-4">
+                 <div class="relative w-full md:w-96">
+                    <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
+                    <input x-model.debounce.500ms="courseSearchQuery" @input="fetchCourses(1)" type="text" placeholder="Search courses..." class="w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:border-indigo-500">
+                </div>
+
+                <div class="flex gap-2 items-center w-full md:w-auto justify-end">
+                    <label class="text-sm text-gray-600 mr-1">Sort:</label>
+                    <select x-model="courseSort.by" @change="fetchCourses(1)" class="border p-2 rounded text-sm">
+                        <option value="id">ID</option>
+                        <option value="title">Title</option>
+                        <option value="credits">Credits</option>
+                        <option value="created_at">Newest</option>
+                    </select>
+                    <button @click="toggleCourseSortOrder" class="px-3 py-2 bg-gray-100 rounded hover:bg-gray-200" :title="courseSort.order === 'asc' ? 'Ascending' : 'Descending'">
+                        <i class="fas" :class="courseSort.order === 'asc' ? 'fa-sort-amount-down-alt' : 'fa-sort-amount-up'"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Create Course Form -->
             <div class="bg-white p-6 rounded-lg shadow flex gap-4 items-end">
                 <div class="flex-1">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Course Title</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">New Course Title</label>
                     <input x-model="newCourse.title" type="text" class="w-full border p-2 rounded">
                 </div>
                 <div class="w-32">
@@ -127,6 +165,12 @@
                         </template>
                     </tbody>
                 </table>
+            </div>
+             <!-- Course Pagination (Optional if list gets long) -->
+             <div class="flex justify-center mt-4 gap-2" x-show="coursePagination.last_page > 1">
+                <button @click="fetchCourses(coursePagination.current_page - 1)" :disabled="coursePagination.current_page <= 1" class="px-3 py-1 bg-gray-200 rounded disabled:opacity-50"><</button>
+                <span class="px-2 py-1 text-sm text-gray-600" x-text="`Page ${coursePagination.current_page}`"></span>
+                <button @click="fetchCourses(coursePagination.current_page + 1)" :disabled="coursePagination.current_page >= coursePagination.last_page" class="px-3 py-1 bg-gray-200 rounded disabled:opacity-50">></button>
             </div>
         </div>
 
@@ -251,9 +295,14 @@
                 courses: [],
                 availableCourses: [],
                 
-                // Pagination
+                // Pagination & Filtering
                 pagination: {},
+                coursePagination: {},
                 searchQuery: '',
+                courseSearchQuery: '',
+                
+                studentSort: { by: 'id', order: 'desc' },
+                courseSort: { by: 'id', order: 'desc' },
 
                 // Forms
                 newStudent: { name: '', email: '', age: '' },
@@ -317,9 +366,19 @@
                     }
                 },
 
+                toggleStudentSortOrder() {
+                    this.studentSort.order = this.studentSort.order === 'asc' ? 'desc' : 'asc';
+                    this.fetchStudents(1);
+                },
+
+                toggleCourseSortOrder() {
+                    this.courseSort.order = this.courseSort.order === 'asc' ? 'desc' : 'asc';
+                    this.fetchCourses(1);
+                },
+
                 // API: Students
                 async fetchStudents(page = 1) {
-                    let url = `${this.baseUrl}/students?page=${page}`;
+                    let url = `${this.baseUrl}/students?page=${page}&sort_by=${this.studentSort.by}&sort_order=${this.studentSort.order}`;
                     if(this.searchQuery) url += `&search=${this.searchQuery}`;
                     
                     const json = await this.safeFetch(url);
@@ -368,10 +427,14 @@
                 },
 
                 // API: Courses
-                async fetchCourses() {
-                    const json = await this.safeFetch(`${this.baseUrl}/courses`);
+                async fetchCourses(page = 1) {
+                    let url = `${this.baseUrl}/courses?page=${page}&sort_by=${this.courseSort.by}&sort_order=${this.courseSort.order}`;
+                    if(this.courseSearchQuery) url += `&search=${this.courseSearchQuery}`;
+
+                    const json = await this.safeFetch(url);
                     if (json) {
                         this.courses = json.data;
+                        this.coursePagination = json;
                     }
                 },
 

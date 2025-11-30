@@ -7,18 +7,31 @@ use Illuminate\Http\Request;
 
 class CourseController extends Controller
 {
-    /**
-     * Display a listing of courses with Pagination.
-     */
-    public function index()
+    public function index(Request $request)
     {
-        // Simple pagination for courses, 10 per page
-        return response()->json(Course::with('students')->paginate(10));
+        $query = Course::with('students');
+
+        // Search (Optional feature for Courses too)
+        if ($request->has('search')) {
+            $searchTerm = $request->search;
+            $query->where('title', 'like', "%{$searchTerm}%");
+        }
+
+        // Sorting
+        if ($request->has('sort_by')) {
+            $sortBy = $request->sort_by;
+            $sortOrder = $request->input('sort_order', 'asc');
+            
+            if (in_array($sortBy, ['id', 'title', 'credits', 'created_at'])) {
+                $query->orderBy($sortBy, $sortOrder);
+            }
+        } else {
+            $query->orderBy('id', 'desc');
+        }
+
+        return response()->json($query->paginate(10));
     }
 
-    /**
-     * Store a newly created course.
-     */
     public function store(Request $request)
     {
         $data = $request->validate([
@@ -31,17 +44,11 @@ class CourseController extends Controller
         return response()->json($course, 201);
     }
 
-    /**
-     * Display the specified course.
-     */
     public function show($id)
     {
         return response()->json(Course::with('students')->findOrFail($id));
     }
 
-    /**
-     * Update the specified course.
-     */
     public function update(Request $request, $id)
     {
         $course = Course::findOrFail($id);
@@ -56,9 +63,6 @@ class CourseController extends Controller
         return response()->json($course);
     }
 
-    /**
-     * Remove the specified course.
-     */
     public function destroy($id)
     {
         Course::findOrFail($id)->delete();
